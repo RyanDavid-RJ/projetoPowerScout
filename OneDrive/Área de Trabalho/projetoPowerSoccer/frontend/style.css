@@ -1,0 +1,292 @@
+/* DESIGN SYSTEM INSPIRADO NO DUOLINGO (Imagens 2, 3, 4) */
+:root {
+    /* Paleta de Cores Duolingo */
+    --duo-green-primary: #58CC02;   /* Botões principais e campo */
+    --duo-green-dark: #46A302;      /* Sombra botões verde */
+    --duo-blue: #1CB0F6;           /* Destaques secundários */
+    --duo-red: #FF4B4B;            /* Erros / Botões */
+    --duo-orange: #FF9600;         /* Avisos / Botões */
+    --duo-purple: #9C27B0;         /* Botões / Níveis */
+    --duo-yellow: #FFC800;         /* Conquistas / Botões */
+    --duo-gray-1: #2D2D2D;         /* Fundo Escuro */
+    --duo-gray-2: #3D3D3D;         /* Cards e Containers */
+    --duo-gray-text: #EAEAEA;      /* Texto Claro */
+    --duo-white: #FFFFFF;
+    
+    /* Estilo */
+    --radius-duo: 16px;            /* Canto bem arredondado Duolingo */
+    --shadow-duo: 0px 4px 0px rgba(0,0,0,0.2); /* Sombra 3D botões */
+    
+    /* Fontes */
+    --font-primary: 'Nunito', sans-serif;
+    --font-titles: 'Fredoka', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background-color: var(--duo-gray-1);
+    color: var(--duo-gray-text);
+    font-family: var(--font-primary);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-titles); margin-bottom: 10px; }
+.cor-duo { color: var(--duo-green-primary); }
+
+/* Cabeçalho */
+.duo-header {
+    background-color: var(--duo-gray-2);
+    padding: 10px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #444;
+}
+
+.logo { font-size: 24px; font-weight: bold; font-family: var(--font-titles); }
+
+/* Layout Geral */
+.layout-principal {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    padding: 20px;
+    gap: 20px;
+}
+
+/* Classes Utilitárias do Design System */
+.duo-container {
+    background-color: var(--duo-gray-2);
+    padding: 20px;
+    border-radius: var(--radius-duo);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.duo-card {
+    background-color: var(--duo-gray-2);
+    border-radius: var(--radius-duo);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+/* Coluna Esquerda & Direita */
+.titulares, .historico { width: 300px; }
+
+.jogador {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background-color: #4a4a4a;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.3s;
+    font-weight: bold;
+}
+
+.jogador:hover { background-color: #5a5a5a; transform: scale(1.02); }
+.jogador.ativo { 
+    border: 3px solid var(--duo-green-primary); 
+    background-color: rgba(88, 204, 2, 0.1);
+}
+
+.foto {
+    width: 40px; height: 40px;
+    background-color: var(--duo-green-primary);
+    border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+    margin-right: 15px; font-weight: bold; font-size: 18px; color: white;
+}
+
+/* Área do Campo */
+.area-campo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.campo-container {
+    width: 100%;
+    max-width: 800px;
+    aspect-ratio: 8 / 5; /* ISTO RESOLVE O PROBLEMA DO ZOOM E DAS ÁREAS CINZENTAS */
+    position: relative;
+    cursor: crosshair;
+    overflow: hidden; /* Corta qualquer clique que tente sair do campo */
+}
+
+.linha-tempo-container {
+    width: 800px;
+    padding: 15px 20px;
+}
+
+input[type=range] { width: 100%; margin-top: 10px; cursor: pointer; }
+
+/* Reservas (Integrados na área do campo) */
+.reservas { width: 800px; padding: 15px; }
+.reservas h4 { color: #888; font-size: 14px; margin-bottom: 5px; }
+.lista-reservas { display: flex; gap: 10px; }
+.lista-reservas .jogador { padding: 8px 12px; margin-bottom: 0; font-size: 14px; }
+
+/* Histórico (Coluna Direita) */
+.historico h3 { color: var(--duo-blue); }
+.duo-list {
+    margin-top: 15px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+}
+
+.item-historico {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #444;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.info-historico strong { color: var(--duo-green-primary); }
+
+.btn-excluir {
+    background: none; border: none; font-size: 16px; cursor: pointer;
+    opacity: 0.6; transition: opacity 0.2s;
+}
+.btn-excluir:hover { opacity: 1; transform: scale(1.1); }
+
+/* Modal de Ações (Design Arredondado Duolingo) */
+.duo-modal {
+    position: absolute;
+    background-color: var(--duo-gray-2);
+    border: 3px solid var(--duo-green-primary);
+    padding: 20px;
+    border-radius: var(--radius-duo);
+    box-shadow: 0px 8px 30px rgba(0,0,0,0.6);
+    z-index: 100;
+    width: 200px;
+}
+
+.escondido { display: none; }
+
+/* Botões de Ação (Estilo Duolingo com Sombra 3D) */
+.botoes-acao {
+    display: flex; flex-direction: column;
+    gap: 10px; margin: 20px 0;
+}
+
+.btn-acao {
+    padding: 12px;
+    cursor: pointer;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 15px;
+    box-shadow: var(--shadow-duo); /* Sombra estilo Duolingo */
+    transition: filter 0.2s, transform 0.1s;
+}
+
+.btn-acao:active { transform: translateY(3px); box-shadow: none; } /* Simula o clique */
+.btn-acao:hover { filter: brightness(1.1); }
+
+/* Paleta de Cores para Botões de Ação (Referências imagem 2, 3) */
+.btn-duo-primary { background-color: var(--duo-green-primary); }
+.btn-duo-azul { background-color: var(--duo-blue); }
+.btn-duo-vermelho { background-color: var(--duo-red); }
+.btn-duo-laranja { background-color: var(--duo-orange); }
+.btn-duo-roxo { background-color: var(--duo-purple); }
+.btn-duo-amarelo { background-color: var(--duo-yellow); color: #333; } /* Amarelo precisa texto escuro */
+
+.btn-cancelar {
+    display: block; width: 100%; padding: 10px;
+    cursor: pointer; background: none; color: #888; border: none; font-weight: bold; margin-top: 10px;
+}
+.btn-cancelar:hover { color: var(--duo-red); }
+
+/* ========================================= */
+/* AS BOLINHAS DO MAPA (O que estava faltando) */
+/* ========================================= */
+.ponto {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%); /* Centraliza o ponto exato no mouse */
+    border: 3px solid var(--duo-white); /* Borda mais grossa estilo cartoon */
+    cursor: pointer;
+    box-shadow: 0px 3px 0px rgba(0,0,0,0.3); /* Sombra 3D */
+    transition: transform 0.2s;
+    z-index: 5;
+}
+
+/* Cores de cada ação conectadas com a nossa paleta Duolingo */
+.passe-certo { background-color: var(--duo-blue); }
+.passe-errado { background-color: var(--duo-red); }
+.interceptacao { background-color: var(--duo-orange); }
+.finalizacao { background-color: var(--duo-purple); }
+.gol { 
+    background-color: var(--duo-yellow); 
+    border-color: #333; /* Borda escura para dar destaque no amarelo */
+    width: 22px; 
+    height: 22px; 
+}
+
+/* Customização da Barra de Tempo (Mobile/Duolingo) */
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none; /* <-- Adicione esta linha para tirar o aviso */
+    width: 100%;
+    height: 8px;
+    background: #444;
+    border-radius: 5px;
+    outline: none;
+    margin-top: 15px;
+}
+
+/* A "bolinha" (thumb) da barra */
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--duo-green-primary);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+/* Quando o usuário clica/pressiona o dedo na bolinha */
+input[type=range]:active::-webkit-slider-thumb {
+    transform: scale(1.5); /* Ela cresce */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+}
+
+/* Animação para destacar a bolinha no mapa */
+.ponto-destaque {
+    transform: translate(-50%, -50%) scale(2.5) !important;
+    box-shadow: 0 0 20px white !important;
+    z-index: 100 !important;
+    transition: all 0.3s ease;
+}
+
+/* Escudo bloqueador de cliques (Backdrop) */
+.bloqueio-tela {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); /* Fundo levemente escurecido */
+    z-index: 90; /* Fica acima de tudo, mas abaixo do modal (que é 100) */
+    display: none; /* Começa escondido */
+}
+
+/* Quando adicionamos esta classe, o escudo aparece e bloqueia tudo */
+.bloqueio-tela.ativo {
+    display: block;
+}

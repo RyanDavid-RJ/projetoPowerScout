@@ -1,0 +1,3 @@
+1: vamos fazer esse projeto primeiramente com as seguintes
+estatisticas: passes certos, passes errados,  interceptacoes, finalizacoes e gols.
+a ideia que estou pensando primariamente no sistema eh
