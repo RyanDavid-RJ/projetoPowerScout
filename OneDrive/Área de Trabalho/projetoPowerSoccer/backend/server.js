@@ -1,6 +1,10 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+// NOVOS:
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const porta = 3000;
@@ -10,6 +14,26 @@ app.use(cors());
 
 // Permite que a API receba os dados das coordenadas em formato JSON
 app.use(express.json());
+
+// Cria a pasta "uploads" automaticamente se ela não existir
+const dir = './uploads';
+if (!fs.existsSync(dir)){
+    fs.mkdirSync(dir);
+}
+
+// Configuração do Multer (Cria o nome do arquivo com a data atual para não repetir)
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/')
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname))
+    }
+});
+const upload = multer({ storage: storage });
+
+// PERMISSÃO MÁGICA: Permite que o frontend acesse a pasta uploads livremente
+app.use('/uploads', express.static('uploads'));
 
 // 1. Criando a conexão com o banco de dados
 const conexao = mysql.createConnection({
@@ -119,7 +143,64 @@ app.put('/api/eventos/:id', (req, res) => {
         res.json({ mensagem: 'Lance atualizado com sucesso!' });
     });
 });
+
+// Rota para CADASTRAR JOGADOR com foto
+app.post('/api/atletas', upload.single('foto'), (req, res) => {
+    const { nome, numero_camisa } = req.body;
+    
+    // Se o cara mandou foto, guarda o caminho. Se não, fica null
+    const fotoPath = req.file ? `/uploads/${req.file.filename}` : null;
+    
+    // Cadastra fixo na equipe 1 (Seleção Brasileira) por enquanto
+    const sql = 'INSERT INTO atletas (nome, numero_camisa, equipe_id, foto) VALUES (?, ?, 1, ?)';
+    
+    conexao.query(sql, [nome, numero_camisa, fotoPath], (erro, resultados) => {
+        if (erro) {
+            console.error('Erro ao cadastrar jogador:', erro);
+            return res.status(500).json({ erro: 'Erro interno ao salvar jogador' });
+        }
+        res.status(201).json({ mensagem: 'Atleta cadastrado com sucesso!', id: resultados.insertId });
+    });
+});
+
+// Rota para BUSCAR todos os atletas cadastrados
+app.get('/api/atletas', (req, res) => {
+    const sql = 'SELECT * FROM atletas ORDER BY id ASC';
+    conexao.query(sql, (erro, resultados) => {
+        if (erro) {
+            console.error('Erro ao buscar atletas:', erro);
+            return res.status(500).json({ erro: 'Erro ao buscar atletas' });
+        }
+        res.json(resultados);
+    });
+});
+
 // 4. Ligando o servidor
 app.listen(porta, () => {
     console.log(`🚀 Servidor rodando em http://localhost:${porta}`);
+});
+
+// ---------------------------------------------
+// ROTA DE LOGIN E AUTENTICAÇÃO
+// ---------------------------------------------
+app.post('/api/login', (req, res) => {
+    const { email } = req.body;
+    
+    // Procura o usuário no banco de dados pelo email
+    const sql = 'SELECT id, nome, email FROM usuarios WHERE email = ?';
+
+    conexao.query(sql, [email], (erro, resultados) => {
+        if (erro) {
+            console.error('Erro na verificação de login:', erro);
+            return res.status(500).json({ erro: 'Erro interno no servidor' });
+        }
+
+        // Se o array tiver algum resultado, o e-mail existe no banco!
+        if (resultados.length > 0) {
+            res.json({ sucesso: true, usuario: resultados[0] });
+        } else {
+            // E-mail não encontrado, barra a entrada
+            res.status(401).json({ sucesso: false, mensagem: 'Usuário não autorizado' });
+        }
+    });
 });

@@ -168,12 +168,21 @@ btnConfirmarSub.addEventListener('click', () => {
         const fotoSaindo = domJogadorSaindo.querySelector('.foto');
         if(fotoSaindo) fotoSaindo.remove();
 
-        // Cria a foto de quem entra
-        const nomeTexto = domJogadorEntrando.querySelector('span').textContent;
-        const inicial = nomeTexto.charAt(0); 
+        // Cria a foto de quem entra (Verifica se ele tem foto real ou usa a letra)
         const divFoto = document.createElement('div');
         divFoto.classList.add('foto');
-        divFoto.textContent = inicial;
+        const fotoReal = domJogadorEntrando.getAttribute('data-foto');
+        
+        if (fotoReal) {
+            divFoto.style.backgroundImage = `url('http://localhost:3000${fotoReal}')`;
+            divFoto.style.backgroundSize = 'cover';
+            divFoto.style.backgroundPosition = 'center';
+            divFoto.style.color = 'transparent';
+        } else {
+            const nomeTexto = domJogadorEntrando.querySelector('span').textContent;
+            divFoto.textContent = nomeTexto.charAt(0);
+        }
+        
         domJogadorEntrando.prepend(divFoto); 
 
         // Troca os dois de lugar
@@ -452,7 +461,65 @@ document.getElementById('btn-eliminar-definitivo').addEventListener('click', () 
         });
 });
 
+// Função para sair do sistema
+function fazerLogout() {
+    localStorage.removeItem('usuarioLogado');
+    window.location.href = 'login.html';
+}
+
+// Preenche o nome no cabeçalho
+if (document.getElementById('nome-treinador')) {
+    const user = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (user) document.getElementById('nome-treinador').textContent = `Olá, ${user.nome}`;
+}
+
 // ==========================================
+// 8. CARREGAR JOGADORES COM FOTOS REAIS
+// ==========================================
+function carregarAtletasDoBanco() {
+    fetch('http://localhost:3000/api/atletas')
+        .then(res => res.json())
+        .then(atletas => {
+            containerTitulares.innerHTML = '<h3>⚽ Titulares</h3>';
+            containerReservas.innerHTML = '';
+
+            atletas.forEach(atleta => {
+                // Regra temporária: Os IDs 1 e 2 começam como titulares
+                const isTitular = (atleta.id === 1 || atleta.id === 2); 
+                
+                const div = document.createElement('div');
+                div.classList.add('jogador');
+                if (atleta.id === atletaIdSelecionado) div.classList.add('ativo');
+                
+                div.setAttribute('data-id', atleta.id);
+                // Guarda o caminho da foto na div (se tiver)
+                div.setAttribute('data-foto', atleta.foto || ''); 
+
+                // Monta o visual da bolinha de foto
+                let htmlFoto = '';
+                if (isTitular) {
+                    if (atleta.foto) {
+                        htmlFoto = `<div class="foto" style="background-image: url('http://localhost:3000${atleta.foto}'); background-size: cover; background-position: center; color: transparent;"></div>`;
+                    } else {
+                        htmlFoto = `<div class="foto">${atleta.nome.charAt(0)}</div>`;
+                    }
+                }
+
+                div.innerHTML = `
+                    ${htmlFoto}
+                    <span>${atleta.nome} (${atleta.numero_camisa})</span>
+                `;
+
+                if (isTitular) {
+                    containerTitulares.appendChild(div);
+                } else {
+                    containerReservas.appendChild(div);
+                }
+            });
+        })
+        .catch(err => console.error('Erro ao carregar atletas:', err));
+}
+
 // BOOT DO SISTEMA
-// ==========================================
+carregarAtletasDoBanco();
 carregarDadosDoBanco();

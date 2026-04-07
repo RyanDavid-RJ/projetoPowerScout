@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - PowerScout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <style>
+        /* Estilos exclusivos para centralizar a caixa de login */
+        body.login-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--duo-gray-1);
+        }
+        .login-box {
+            background-color: var(--duo-gray-2);
+            padding: 40px;
+            border-radius: var(--radius-duo);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid #444;
+        }
+        .login-box h1 { font-size: 36px; margin-bottom: 10px; }
+        .login-box p { color: #aaa; margin-bottom: 30px; font-size: 15px; }
+        #mensagem-erro { color: var(--duo-red); margin-top: 15px; font-weight: bold; display: none; }
+        
+        /* Botão para testar enquanto você não tem o Client ID do Google */
+        .btn-dev { margin-top: 20px; background: none; border: 1px solid #666; color: #888; font-size: 12px; cursor: pointer; padding: 5px 10px; border-radius: 5px;}
+        .btn-dev:hover { color: white; border-color: white; }
+    </style>
+</head>
+<body class="login-page">
+
+    <div class="login-box">
+        <h1><span class="cor-duo">Power</span>Scout</h1>
+        <p>Acesse o painel tático da equipe</p>
+
+        <div style="display: flex; justify-content: center;">
+            <div id="g_id_onload"
+                 data-client_id="SEU_CLIENT_ID_AQUI" 
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin" data-type="standard" data-size="large" data-theme="filled_black" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+        </div>
+
+        <div id="mensagem-erro">E-mail não autorizado!</div>
+        
+        <button class="btn-dev" onclick="loginDesenvolvedor()">Login Rápido (Modo Dev)</button>
+    </div>
+
+    <script>
+        // Função que "traduz" o token criptografado que o Google devolve
+        function decodificarJWT(token) {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
+
+        // Essa função roda automaticamente quando o usuário clica na conta do Google
+        function handleCredentialResponse(response) {
+            const dadosGoogle = decodificarJWT(response.credential);
+            enviarParaBackend(dadosGoogle.email);
+        }
+
+        // Função temporária para você programar sem depender do Google
+        function loginDesenvolvedor() {
+            enviarParaBackend('treinador@teste.com'); // O email que tá no nosso banco!
+        }
+
+        // Pede para a nossa API verificar se a pessoa tem permissão
+        function enviarParaBackend(emailUsuario) {
+            fetch('http://localhost:3000/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailUsuario })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.sucesso) {
+                    // Salva os dados do treinador no navegador (como se fosse um crachá)
+                    localStorage.setItem('usuarioLogado', JSON.stringify(data.usuario));
+                    window.location.href = 'index.html'; // Libera a catraca!
+                } else {
+                    const erroDiv = document.getElementById('mensagem-erro');
+                    erroDiv.style.display = 'block';
+                }
+            })
+            .catch(err => console.error('Erro de conexão:', err));
+        }
+    </script>
+</body>
+</html>

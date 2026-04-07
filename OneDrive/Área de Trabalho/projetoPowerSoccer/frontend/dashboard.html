@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+
+    <script>
+        // SEGURANÇA: Se não tiver o crachá no localStorage, chuta de volta pro Login
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado) {
+            window.location.href = 'login.html';
+        }
+    </script>
+    
     <meta charset="UTF-8">
     <title>Estatísticas - Power Soccer</title>
     <style>
