@@ -43,7 +43,6 @@ let idEntrando = null;
 // ==========================================
 // 2. CONTROLE DO TEMPO E AUTO-SWITCH
 // ==========================================
-// Atualiza o texto visual enquanto o usuário arrasta
 inputTempo.addEventListener('input', (e) => {
     const segundosTotais = e.target.value;
     const minutos = Math.floor(segundosTotais / 60).toString().padStart(2, '0');
@@ -55,13 +54,15 @@ inputTempo.addEventListener('input', (e) => {
 // A INTELIGÊNCIA: Verifica se caiu na área vermelha ao soltar a barra
 inputTempo.addEventListener('change', (e) => {
     const segundosSelecionados = parseInt(e.target.value);
-    const intervalos = calcularIntervalosDoJogador(atletaIdSelecionado);
     
-    const taJogando = intervalos.some(int => segundosSelecionados >= int.inicio && segundosSelecionados <= int.fim);
+    // 1. Reorganiza a tela para mostrar quem era titular ou reserva neste exato minuto
+    reorganizarTitularesEReservas(segundosSelecionados);
+
+    // 2. Usa a nova função corrigida para ver se ele tava em quadra
+    const taJogando = estaEmQuadra(atletaIdSelecionado, segundosSelecionados);
     
+    // 3. Se o cara selecionado não tava jogando, pula pra quem tava!
     if (!taJogando) {
-        alert(`Atenção: ${jogadorSelecionado} estava no banco de reservas neste momento! O sistema vai trocar para o titular da posição.`);
-        
         let achouSubstituto = false;
         
         document.querySelectorAll('.jogador').forEach(boxJogador => {
@@ -70,11 +71,11 @@ inputTempo.addEventListener('change', (e) => {
             const idTestado = parseInt(boxJogador.getAttribute('data-id'));
             if (idTestado === atletaIdSelecionado) return; 
             
-            const intervalosTeste = calcularIntervalosDoJogador(idTestado);
-            const eleTavaNaQuadra = intervalosTeste.some(int => segundosSelecionados >= int.inicio && segundosSelecionados <= int.fim);
+            const eleTavaNaQuadra = estaEmQuadra(idTestado, segundosSelecionados);
             
             if (eleTavaNaQuadra) {
-                // Pula para o jogador que estava em quadra
+                alert(`Atenção: O jogador atual estava no banco neste momento! O sistema mudou para o titular da posição.`);
+                
                 document.querySelectorAll('.jogador').forEach(j => j.classList.remove('ativo'));
                 boxJogador.classList.add('ativo');
                 
@@ -82,6 +83,7 @@ inputTempo.addEventListener('change', (e) => {
                 atletaIdSelecionado = idTestado;
                 achouSubstituto = true;
                 
+                // Redesenha a lista do lado direito sem tirar a barra do lugar!
                 renderizarMapaELista(); 
             }
         });
@@ -127,7 +129,7 @@ document.addEventListener('click', (e) => {
         escudoBloqueio.classList.add('ativo');
         modalSubstituicao.classList.remove('escondido');
     } 
-    // Apenas muda de aba
+    // Apenas seleciona outro Titular
     else if (!isReserva) {
         document.querySelectorAll('.jogador').forEach(j => j.classList.remove('ativo'));
         boxJogador.classList.add('ativo');
@@ -136,11 +138,29 @@ document.addEventListener('click', (e) => {
         atletaIdSelecionado = parseInt(boxJogador.getAttribute('data-id'));
 
         const lancesDoJogador = lancesDaPartida.filter(l => l.atleta_id === atletaIdSelecionado);
+        
         if (lancesDoJogador.length > 0) {
-            atualizarBarraDeTempo(lancesDoJogador[lancesDoJogador.length - 1].minuto_video);
+            // Ordena para achar o MAIS RECENTE daquele jogador e pular pra lá
+            const sorted = [...lancesDoJogador].sort((a, b) => {
+                const tA = (parseInt(a.minuto_video.split(':')[0]) * 60) + parseInt(a.minuto_video.split(':')[1]);
+                const tB = (parseInt(b.minuto_video.split(':')[0]) * 60) + parseInt(b.minuto_video.split(':')[1]);
+                return tA - tB; 
+            });
+            atualizarBarraDeTempo(sorted[sorted.length - 1].minuto_video);
         } else {
-            atualizarBarraDeTempo("00:00");
+            // Pula para a hora em que ele entrou em quadra
+            const intervalos = calcularIntervalosDoJogador(atletaIdSelecionado);
+            if(intervalos.length > 0) {
+                const min = Math.floor(intervalos[0].inicio / 60).toString().padStart(2, '0');
+                const sec = (intervalos[0].inicio % 60).toString().padStart(2, '0');
+                atualizarBarraDeTempo(`${min}:${sec}`);
+            } else {
+                atualizarBarraDeTempo("00:00");
+            }
         }
+        
+        // Se mudamos de tempo, arrumamos as caixas
+        reorganizarTitularesEReservas(parseInt(inputTempo.value));
         renderizarMapaELista(); 
     }
 });
@@ -164,32 +184,8 @@ btnConfirmarSub.addEventListener('click', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosParaBanco)
     }).then(() => {
-        // Arranca a foto de quem sai
-        const fotoSaindo = domJogadorSaindo.querySelector('.foto');
-        if(fotoSaindo) fotoSaindo.remove();
-
-        // Cria a foto de quem entra (Verifica se ele tem foto real ou usa a letra)
-        const divFoto = document.createElement('div');
-        divFoto.classList.add('foto');
-        const fotoReal = domJogadorEntrando.getAttribute('data-foto');
-        
-        if (fotoReal) {
-            divFoto.style.backgroundImage = `url('http://localhost:3000${fotoReal}')`;
-            divFoto.style.backgroundSize = 'cover';
-            divFoto.style.backgroundPosition = 'center';
-            divFoto.style.color = 'transparent';
-        } else {
-            const nomeTexto = domJogadorEntrando.querySelector('span').textContent;
-            divFoto.textContent = nomeTexto.charAt(0);
-        }
-        
-        domJogadorEntrando.prepend(divFoto); 
-
-        // Troca os dois de lugar
-        containerTitulares.appendChild(domJogadorEntrando);
-        containerReservas.appendChild(domJogadorSaindo);
-        
-        domJogadorSaindo.classList.remove('ativo');
+        // Atualiza a seleção e reconstrói
+        document.querySelectorAll('.jogador').forEach(j => j.classList.remove('ativo'));
         domJogadorEntrando.classList.add('ativo');
         
         jogadorSelecionado = domJogadorEntrando.querySelector('span').textContent;
@@ -197,7 +193,8 @@ btnConfirmarSub.addEventListener('click', () => {
 
         modalSubstituicao.classList.add('escondido');
         escudoBloqueio.classList.remove('ativo');
-        carregarDadosDoBanco();
+        
+        carregarDadosDoBanco(); // O sistema vai reconstruir a tela perfeitamente sozinho
     });
 });
 
@@ -211,10 +208,8 @@ svgQuadra.addEventListener('click', (e) => {
 
     if(cliqueX < 0 || cliqueX > 100 || cliqueY < 0 || cliqueY > 100) return;
 
-    // A Trava da Área Vermelha
     const segundos = parseInt(inputTempo.value);
-    const intervalos = calcularIntervalosDoJogador(atletaIdSelecionado);
-    const taJogando = intervalos.some(int => segundos >= int.inicio && segundos <= int.fim);
+    const taJogando = estaEmQuadra(atletaIdSelecionado, segundos);
     
     if (!taJogando) {
         alert(`Impossível registrar lance. O ${jogadorSelecionado} está no banco neste momento do jogo.`);
@@ -296,6 +291,19 @@ function calcularIntervalosDoJogador(idPesquisado) {
     return intervalos; 
 }
 
+// A FUNÇÃO QUE CORRIGE O BUG MATEMÁTICO DOS SEGUNDOS EXATOS
+function estaEmQuadra(idPesquisado, segundosAtual) {
+    const intervalos = calcularIntervalosDoJogador(idPesquisado);
+    return intervalos.some(int => {
+        // Exceção: Se for exatamente o final do jogo (2400s), usamos o <= para o lance não ser bloqueado
+        if (int.fim >= 2400 && segundosAtual >= 2400) {
+            return segundosAtual >= int.inicio && segundosAtual <= int.fim;
+        }
+        // Magia: O final é SEMPRE um milissegundo a menos (< int.fim). Isso evita o "empate" de titulares!
+        return segundosAtual >= int.inicio && segundosAtual < int.fim;
+    });
+}
+
 function atualizarCoresDaBarra() {
     const intervalos = calcularIntervalosDoJogador(atletaIdSelecionado);
     const maxSegundos = 2400; 
@@ -325,7 +333,49 @@ function atualizarCoresDaBarra() {
 }
 
 // ==========================================
-// 6. RENDERIZAÇÃO CRONOLÓGICA (MÁGICA FINAL)
+// 6. A FUNÇÃO MESTRA (Reorganiza UI por Tempo)
+// ==========================================
+function reorganizarTitularesEReservas(segundosAtual) {
+    const todosJogadores = document.querySelectorAll('.jogador');
+    const boxReservas = document.querySelector('.lista-reservas');
+    
+    todosJogadores.forEach(div => {
+        const id = parseInt(div.getAttribute('data-id'));
+        
+        // Substituído para usar nossa nova função mestra "estaEmQuadra"
+        const isTitular = estaEmQuadra(id, segundosAtual);
+
+        let fotoDiv = div.querySelector('.foto');
+
+        if (isTitular) {
+            containerTitulares.appendChild(div); // Coloca na coluna esquerda
+            
+            // Coloca a foto se não tiver
+            if (!fotoDiv) {
+                fotoDiv = document.createElement('div');
+                fotoDiv.classList.add('foto');
+                const fotoReal = div.getAttribute('data-foto');
+                
+                if (fotoReal && fotoReal !== 'null' && fotoReal !== '') {
+                    fotoDiv.style.backgroundImage = `url('http://localhost:3000${fotoReal}')`;
+                    fotoDiv.style.backgroundSize = 'cover';
+                    fotoDiv.style.backgroundPosition = 'center';
+                    fotoDiv.style.color = 'transparent';
+                } else {
+                    const nomeTexto = div.querySelector('span').textContent;
+                    fotoDiv.textContent = nomeTexto.charAt(0);
+                }
+                div.prepend(fotoDiv);
+            }
+        } else {
+            boxReservas.appendChild(div); // Joga pro banco
+            if (fotoDiv) fotoDiv.remove(); // Tira a foto
+        }
+    });
+}
+
+// ==========================================
+// 7. RENDERIZAÇÃO CRONOLÓGICA
 // ==========================================
 function carregarDadosDoBanco() {
     fetch('http://localhost:3000/api/eventos/partida/1') 
@@ -340,30 +390,28 @@ function renderizarMapaELista() {
     document.querySelectorAll('.ponto').forEach(ponto => ponto.remove());
     listaHistorico.innerHTML = ''; 
 
-    // O Filtro poderoso: Traz as ações DELE, e as substituições ONDE ELE ENTROU
+    // O sistema reorganiza visualmente Titulares vs Reservas AGORA
+    reorganizarTitularesEReservas(parseInt(inputTempo.value));
+
     const lancesFiltrados = lancesDaPartida
         .filter(l => l.atleta_id === atletaIdSelecionado || l.jogador_entrou_id === atletaIdSelecionado)
         .sort((a, b) => {
             const tempoA = (parseInt(a.minuto_video.split(':')[0]) * 60) + parseInt(a.minuto_video.split(':')[1]);
             const tempoB = (parseInt(b.minuto_video.split(':')[0]) * 60) + parseInt(b.minuto_video.split(':')[1]);
-            return tempoB - tempoA; // Ordenação Cronológica (Mais recente no topo)
+            return tempoB - tempoA; 
         });
 
     lancesFiltrados.forEach(lance => {
-        
-        // --- SE FOR SUBSTITUIÇÃO (Visual da lista diferente, sem bolinha no mapa) ---
         if(lance.tipo_acao === 'Substituição') {
             const item = document.createElement('div');
             item.classList.add('item-historico');
             
             let textoHist = '';
             if (lance.atleta_id === atletaIdSelecionado) {
-                // Ele Saiu
                 textoHist = `<strong>🔄 FOI SUBSTITUÍDO (Foi pro banco)</strong>`;
                 item.style.backgroundColor = 'var(--duo-red)';
                 item.style.color = 'white';
             } else {
-                // Ele Entrou
                 textoHist = `<strong>🔄 ENTROU NA QUADRA (Titular)</strong>`;
                 item.style.backgroundColor = 'var(--duo-green-primary)';
                 item.style.color = 'white';
@@ -374,12 +422,10 @@ function renderizarMapaELista() {
                     ${textoHist} <br><small>⏱️ ${lance.minuto_video}</small>
                 </div>
             `;
-            // ATENÇÃO AQUI: AppendChild porque a lista já está ordenada!
             listaHistorico.appendChild(item); 
             return; 
         }
 
-        // --- SE FOR LANCE NORMAL (Gera Bolinha) ---
         const bolinha = document.createElement('div');
         bolinha.classList.add('ponto');
         bolinha.id = `bolinha-${lance.id}`;
@@ -405,6 +451,9 @@ function renderizarMapaELista() {
 
         item.addEventListener('click', () => {
             atualizarBarraDeTempo(lance.minuto_video);
+            // Ao clicar no histórico, também reorganizamos quem tava em quadra
+            reorganizarTitularesEReservas(parseInt(inputTempo.value));
+            
             const bolinhaAlvo = document.getElementById(`bolinha-${lance.id}`);
             if(bolinhaAlvo) {
                 bolinhaAlvo.classList.add('ponto-destaque');
@@ -415,12 +464,11 @@ function renderizarMapaELista() {
         listaHistorico.appendChild(item); 
     });
 
-    // Pinta a barra de vermelho dinamicamente
     atualizarCoresDaBarra();
 }
 
 // ==========================================
-// 7. EDIÇÃO E ELIMINAÇÃO (MANTIDO)
+// 8. EDIÇÃO E ELIMINAÇÃO
 // ==========================================
 function abrirModalEdicao(eventoContexto, id, acaoAtual, minutoAtual) {
     eventoContexto.stopPropagation(); 
@@ -461,65 +509,46 @@ document.getElementById('btn-eliminar-definitivo').addEventListener('click', () 
         });
 });
 
-// Função para sair do sistema
 function fazerLogout() {
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
 }
 
-// Preenche o nome no cabeçalho
 if (document.getElementById('nome-treinador')) {
     const user = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (user) document.getElementById('nome-treinador').textContent = `Olá, ${user.nome}`;
 }
 
 // ==========================================
-// 8. CARREGAR JOGADORES COM FOTOS REAIS
+// 9. CARREGAR JOGADORES DO BANCO
 // ==========================================
 function carregarAtletasDoBanco() {
     fetch('http://localhost:3000/api/atletas')
         .then(res => res.json())
         .then(atletas => {
             containerTitulares.innerHTML = '<h3>⚽ Titulares</h3>';
-            containerReservas.innerHTML = '';
+            const divListaReservas = document.querySelector('.lista-reservas');
+            divListaReservas.innerHTML = '';
 
             atletas.forEach(atleta => {
-                // Regra temporária: Os IDs 1 e 2 começam como titulares
-                const isTitular = (atleta.id === 1 || atleta.id === 2); 
-                
                 const div = document.createElement('div');
                 div.classList.add('jogador');
                 if (atleta.id === atletaIdSelecionado) div.classList.add('ativo');
                 
                 div.setAttribute('data-id', atleta.id);
-                // Guarda o caminho da foto na div (se tiver)
                 div.setAttribute('data-foto', atleta.foto || ''); 
 
-                // Monta o visual da bolinha de foto
-                let htmlFoto = '';
-                if (isTitular) {
-                    if (atleta.foto) {
-                        htmlFoto = `<div class="foto" style="background-image: url('http://localhost:3000${atleta.foto}'); background-size: cover; background-position: center; color: transparent;"></div>`;
-                    } else {
-                        htmlFoto = `<div class="foto">${atleta.nome.charAt(0)}</div>`;
-                    }
-                }
-
-                div.innerHTML = `
-                    ${htmlFoto}
-                    <span>${atleta.nome} (${atleta.numero_camisa})</span>
-                `;
-
-                if (isTitular) {
-                    containerTitulares.appendChild(div);
-                } else {
-                    containerReservas.appendChild(div);
-                }
+                div.innerHTML = `<span>${atleta.nome} (${atleta.numero_camisa})</span>`;
+                divListaReservas.appendChild(div); // Coloca todo mundo na reserva no início
             });
+
+            // Chama o motor de dados (que também chamará a nossa nova função de reorganizar)
+            carregarDadosDoBanco();
         })
         .catch(err => console.error('Erro ao carregar atletas:', err));
 }
 
+// ==========================================
 // BOOT DO SISTEMA
+// ==========================================
 carregarAtletasDoBanco();
-carregarDadosDoBanco();
